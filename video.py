@@ -50,6 +50,8 @@ class OpenCVVideo(object):
 class VideoLabeler():
     def __init__(self, filename, size):
         self.video = cv2.VideoWriter(filename,cv2.VideoWriter_fourcc('M','J','P','G'), 10, size)
+        self.size = size
+        self.device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
     
     def finalize(self):
         self.video.release()
@@ -57,7 +59,7 @@ class VideoLabeler():
     def accept(self, model, images, targets):
         model.eval()
         with torch.no_grad():
-            images = list(image.to(model.device) for image in images)
+            images = list(image.to(self.device) for image in images)
             outputs = model(images)
             
             images = list(image.cpu() for image in images)
@@ -68,7 +70,7 @@ class VideoLabeler():
                 output = outputs[i]
                 image = torchvision.utils.draw_bounding_boxes((im * 255).byte().cpu(), output['boxes'][output['scores'] > 0.5])
 
-                frame = torch.nn.functional.interpolate(image.unsqueeze(0), tuple(reversed(size))) 
+                frame = torch.nn.functional.interpolate(image.unsqueeze(0), tuple(reversed(self.size))) 
                 frame = frame.squeeze().cpu().numpy().transpose(1, 2, 0)
                 self.video.write(frame)
                 del im, frame

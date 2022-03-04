@@ -86,7 +86,7 @@ def get_unlabeled_transform(train):
                 A.RandomBrightnessContrast(p=0.2),
             ])
     else:
-        albu = A.Compose([])
+        albu = A.Compose([A.LongestMaxSize(2048)])
     albu = Albu(albu)
     return Compose([
             albu,
