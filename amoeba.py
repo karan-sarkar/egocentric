@@ -47,6 +47,7 @@ num_epochs = args.epoch
 
 for epoch in range(num_epochs):
     train_one_amoeba_epoch(model, (g_optimizer, d_optimizer), (data_loader, video), device, epoch, print_freq=10)
-    torch.save({'model': model.state_dict(), 'g_opt': g_optimizer.state_dict(), 'd_opt': d_optimizer.state_dict()}, 'supervised' + str(epoch) + '.pth') 
+    torch.save({'model': model.state_dict(), 'g_opt': g_optimizer.state_dict(), 'd_opt': d_optimizer.state_dict()}, 'amoeba' + str(epoch) + '.pth') 
     evaluator = Evaluator(cityscapes_categories)
     evaluate(model, evaluator, data_loader_test)
+    video = OpenCVVideo('warsaw.mp4', get_unlabeled_transform(True), args.batch, sample=1)
