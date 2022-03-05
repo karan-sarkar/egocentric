@@ -39,7 +39,7 @@ class OpenCVVideo(object):
                     ret, frame = self.capture.read()
                 if frame is not None:
                     frame = self.transforms(frame, None)[0]
-                    frames.append(torch.tensor(frame).float() / 255)
+                    frames.append(frame)
             if len(frames) == 0:
                 raise StopIteration
             frames = torch.stack(frames, 0)

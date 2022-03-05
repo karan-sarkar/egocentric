@@ -63,17 +63,19 @@ class Evaluator():
 
         del targets, outputs, images
 
-def evaluate(model, evaluator, data_loader):
+def evaluate(model, evaluator, data_loader, limit=None):
     model.eval()
     
     with torch.no_grad():
         enum = enumerate(tqdm(data_loader))
-        for _ in range(len(data_loader)) :
+        for i in range(len(data_loader)) :
             try:
                 _, (images, targets) = next(enum)
             except:
                 continue
             evaluator.accept(model, images, targets)
+            if limit is not None and i > limit:
+                break
     
         evaluator.finalize()
 

@@ -26,4 +26,4 @@ if args.ckpt is not None:
 
 video = OpenCVVideo('warsaw.mp4', get_unlabeled_transform(True), args.batch, sample=1)
 labeler = VideoLabeler('warsaw_labeled.avi', (1720, 1080))
-evaluate(model, labeler, video)
+evaluate(model, labeler, video, limit=1000)
