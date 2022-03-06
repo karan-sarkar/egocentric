@@ -16,12 +16,16 @@ class FasterRCNN(nn.Module):
         
         self.backbone = model.backbone
         self.rpn = model.rpn
-        if discrep:
-            self.rpn = CustomRPN(self.rpn)
             
         self.roi_heads = model.roi_heads
         in_features = model.roi_heads.box_predictor.cls_score.in_features
-        model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
+        self.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
+        
+        if discrep:
+            self.rpn = CustomRPN(self.rpn)
+            self.roi_heads = CustomROIHead(self.roi_heads)
+       
+        
         self.transform = model.transform
     
     def forward(self, images, targets=None, ignore=False):
@@ -41,8 +45,6 @@ class FasterRCNN(nn.Module):
         losses = {}
         
         losses.update(proposal_losses)
-        if ignore:
-            return losses
         
         detections, detector_losses = self.roi_heads(features, proposals, images.image_sizes, targets)
         detections = self.transform.postprocess(detections, images.image_sizes, original_image_sizes)  # type: ignore[operator
@@ -51,6 +53,65 @@ class FasterRCNN(nn.Module):
             return losses
         
         return detections
+
+class StdDiscrepLoss(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.loss = nn.L1Loss()
+        
+    def forward(self, x, y):
+        x1 = (x - x.mean(0)) / (x.std(0))
+        y1 = (y - y.mean(0)) / (y.std(0))
+        return self.loss(x1, y1)
+        
+class CustomROIHead(nn.Module):
+    def __init__(self, roi_head):
+        super().__init__()
+        self.roi_head = roi_head
+        self.extra_predictor = copy.deepcopy(self.roi_head.box_predictor)
+        self.discrep_loss = StdDiscrepLoss()
+        self.iter = 0
+        
+        for layer in self.extra_predictor.children():
+            torch.nn.init.normal_(layer.weight, std=0.01)  # type: ignore[arg-type]
+            torch.nn.init.constant_(layer.bias, 0)
+    
+    
+    def forward(self,  features, proposals, image_shapes, targets=None,  ):
+        if self.training and targets is not None:
+            proposals, matched_idxs, labels, regression_targets = self.roi_head.select_training_samples(proposals, targets)
+        else:
+            labels = None
+            regression_targets = None
+            matched_idxs = None
+
+        box_features = self.roi_head.box_roi_pool(features, proposals, image_shapes)
+        box_features = self.roi_head.box_head(box_features)
+        class_logits, box_regression = self.roi_head.box_predictor(box_features)
+        extra_class_logits, extra_box_regression = self.extra_predictor(box_features)
+
+        result = []
+        losses = {}
+        if self.training:
+            class_discrep = self.discrep_loss(extra_class_logits.softmax(-1), class_logits.detach().softmax(-1))
+            box_discrep = self.discrep_loss(extra_box_regression, box_regression.detach())
+            losses = {'class_discrep': class_discrep, 'box_discrep': box_discrep}
+            
+            if targets is not None:
+                loss_classifier, loss_box_reg = fastrcnn_loss(class_logits, box_regression, labels, regression_targets)
+                losses.update({"loss_classifier": loss_classifier, "loss_box_reg": loss_box_reg})
+        else:
+            boxes, scores, labels = self.roi_head.postprocess_detections(class_logits, box_regression, proposals, image_shapes)
+            num_images = len(boxes)
+            for i in range(num_images):
+                result.append(
+                    {
+                        "boxes": boxes[i],
+                        "labels": labels[i],
+                        "scores": scores[i],
+                    }
+                )
+        return (result, losses)
         
 class CustomRPN(nn.Module):
     def __init__(self, rpn):
@@ -79,12 +140,12 @@ class CustomRPN(nn.Module):
         objectness, pred_bbox_deltas = concat_box_prediction_layers(objectness, pred_bbox_deltas)
         extra_objectness, extra_pred_bbox_deltas = concat_box_prediction_layers(extra_objectness, extra_pred_bbox_deltas)
         
-        if self.iter % 2 == 0:
-            obj = objectness
-            pbd = pred_bbox_deltas
-        else:
-            obj = extra_objectness
-            pbd = extra_pred_bbox_deltas
+        #if self.iter % 2 == 0:
+        obj = objectness
+        pbd = pred_bbox_deltas
+        #else:
+            #obj = extra_objectness
+            #pbd = extra_pred_bbox_deltas
         
         
         proposals = self.rpn.box_coder.decode(pbd.detach(), anchors)
@@ -92,8 +153,8 @@ class CustomRPN(nn.Module):
         boxes, scores = self.rpn.filter_proposals(proposals, obj, images.image_sizes, num_anchors_per_level)
 
         losses = {}
-        losses['objectness_discrep'] = self.discrep_loss(extra_objectness.sigmoid(), objectness.detach().sigmoid())
-        losses['bbox_discrep'] = self.discrep_loss(extra_pred_bbox_deltas.sigmoid(), pred_bbox_deltas.detach().sigmoid())
+        #losses['objectness_discrep'] = self.discrep_loss(extra_objectness.sigmoid(), objectness.detach().sigmoid())
+        #losses['bbox_discrep'] = self.discrep_loss(extra_pred_bbox_deltas.sigmoid(), pred_bbox_deltas.detach().sigmoid())
             
             
         if self.training and targets is not None:

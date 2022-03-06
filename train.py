@@ -38,13 +38,13 @@ def train_one_amoeba_epoch(model, optimizers, data_loaders, device, epoch, print
     
     source_iter = enumerate(source_data)
     
-    pbar = tqdm(target_video)
-    for video_batch, _ in pbar:
+    pbar = tqdm(range(len(source_data)))
+    for _ in pbar:
         try:
             _, (source_images, source_targets) = next(source_iter)
+            video_batch, _ = next(target_video)
         except StopIteration:
-            source_iter = enumerate(source_data)
-            continue
+            break
         except:
             continue
         source_images = [im for im, t in zip(source_images, source_targets) if t['image_id'].sum() >= 0]

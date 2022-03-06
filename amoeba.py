@@ -15,7 +15,7 @@ args = read_args()
 
 device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 
-num_classes = 31
+num_classes = 9
 cityscapes_categories = [{"id": 1, "name": "person"}, {"id": 2, "name": "rider"}, {"id": 3, "name": "car"}, {"id": 4, "name": "bicycle"}, {"id": 5, "name": "motorcycle"}, {"id": 6, "name": "bus"}, {"id": 7, "name": "truck"}, {"id": 8, "name": "train"}]
 
 dataset = torchvision.datasets.CocoDetection('../cityscapes', '../cityscapes/annotations/instancesonly_filtered_gtFine_train.json', transforms = get_transform(True))
@@ -50,4 +50,4 @@ for epoch in range(num_epochs):
     torch.save({'model': model.state_dict(), 'g_opt': g_optimizer.state_dict(), 'd_opt': d_optimizer.state_dict()}, 'amoeba' + str(epoch) + '.pth') 
     evaluator = Evaluator(cityscapes_categories)
     evaluate(model, evaluator, data_loader_test)
-    video = OpenCVVideo('warsaw.mp4', get_unlabeled_transform(True), args.batch, sample=1)
+    #video = OpenCVVideo('warsaw.mp4', get_unlabeled_transform(True), args.batch, sample=1)
