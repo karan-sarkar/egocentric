@@ -39,7 +39,7 @@ def train_one_amoeba_epoch(model, optimizers, data_loaders, device, epoch, print
     source_iter = enumerate(source_data)
     
     pbar = tqdm(range(len(source_data)))
-    for _ in pbar:
+    for i in pbar:
         try:
             _, (source_images, source_targets) = next(source_iter)
             video_batch, _ = next(target_video)
@@ -47,6 +47,8 @@ def train_one_amoeba_epoch(model, optimizers, data_loaders, device, epoch, print
             break
         except:
             continue
+        
+        
         source_images = [im for im, t in zip(source_images, source_targets) if t['image_id'].sum() >= 0]
         source_targets = [t for t in source_targets if t['image_id'].sum() >= 0]
         descrip = ''
@@ -84,14 +86,14 @@ def train_one_amoeba_epoch(model, optimizers, data_loaders, device, epoch, print
         d_opt.step()
         del loss_dict, losses
         
-        for _ in range(3):
+        for _ in range(4):
         
-            loss_dict = model(source_images, source_targets)
-            losses = sum(loss for loss in loss_dict.values())
+            #loss_dict = model(source_images, source_targets)
+            #losses = sum(loss for loss in loss_dict.values())
 
             video_batch = video_batch.to(device)
             loss_dict = model(video_batch, ignore=True)
-            losses += sum(loss for loss in loss_dict.values())
+            losses = sum(loss for loss in loss_dict.values())
 
             g_opt.zero_grad()
             losses.backward()

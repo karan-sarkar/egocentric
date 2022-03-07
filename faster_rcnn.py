@@ -60,8 +60,9 @@ class StdDiscrepLoss(nn.Module):
         self.loss = nn.L1Loss()
         
     def forward(self, x, y):
-        x1 = (x - x.mean(0)) / (x.std(0))
-        y1 = (y - y.mean(0)) / (y.std(0))
+        sentinel = torch.Tensor([0.00001]).to(x.device)
+        x1 = (x - y.mean(0)) / (torch.max(y.std(0), sentinel))
+        y1 = (y - y.mean(0)) / (torch.max(y.std(0), sentinel))
         return self.loss(x1, y1)
         
 class CustomROIHead(nn.Module):
@@ -70,6 +71,7 @@ class CustomROIHead(nn.Module):
         self.roi_head = roi_head
         self.extra_predictor = copy.deepcopy(self.roi_head.box_predictor)
         self.discrep_loss = StdDiscrepLoss()
+        self.discrep_loss2 = nn.L1Loss()
         self.iter = 0
         
         for layer in self.extra_predictor.children():
@@ -93,13 +95,15 @@ class CustomROIHead(nn.Module):
         result = []
         losses = {}
         if self.training:
-            class_discrep = self.discrep_loss(extra_class_logits.softmax(-1), class_logits.detach().softmax(-1))
-            box_discrep = self.discrep_loss(extra_box_regression, box_regression.detach())
+            class_discrep = 0.1 * self.discrep_loss(extra_class_logits.softmax(-1), class_logits.detach().softmax(-1))
+            box_discrep = 0.1 * self.discrep_loss2(extra_box_regression, box_regression.detach())
             losses = {'class_discrep': class_discrep, 'box_discrep': box_discrep}
             
             if targets is not None:
                 loss_classifier, loss_box_reg = fastrcnn_loss(class_logits, box_regression, labels, regression_targets)
-                losses.update({"loss_classifier": loss_classifier, "loss_box_reg": loss_box_reg})
+                extra_loss_classifier, extra_loss_box_reg = fastrcnn_loss(extra_class_logits, extra_box_regression, labels, regression_targets)
+                losses.update({"loss_classifier": loss_classifier, "loss_box_reg": loss_box_reg, 
+                    "extra_loss_classifier": extra_loss_classifier, "extra_loss_box_reg": extra_loss_box_reg})
         else:
             boxes, scores, labels = self.roi_head.postprocess_detections(class_logits, box_regression, proposals, image_shapes)
             num_images = len(boxes)

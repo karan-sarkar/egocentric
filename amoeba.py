@@ -27,6 +27,7 @@ data_loader_test = torch.utils.data.DataLoader(dataset_test, batch_size=args.bat
 model = FasterRCNN(num_classes, discrep=True)
 model.to(device)
 
+
 for p in model.parameters():
     p.requires_grad = True
     
