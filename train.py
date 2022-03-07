@@ -42,13 +42,12 @@ def train_one_amoeba_epoch(model, optimizers, data_loaders, device, epoch, print
     for i in pbar:
         try:
             _, (source_images, source_targets) = next(source_iter)
-            video_batch, _ = next(target_video)
         except StopIteration:
             break
         except:
             continue
         
-        
+        video_batch, _ = next(target_video)
         source_images = [im for im, t in zip(source_images, source_targets) if t['image_id'].sum() >= 0]
         source_targets = [t for t in source_targets if t['image_id'].sum() >= 0]
         descrip = ''

@@ -29,6 +29,7 @@ class OpenCVVideo(object):
             raise StopIteration
         else:
             frames = []
+            self.capture.set(cv2.CAP_PROP_POS_FRAMES, np.random.randint(self.frame_count - self.batch * self.sample))
             for _ in range(self.batch):
                 for _ in range(self.sample):
                     if not self.capture.isOpened():
