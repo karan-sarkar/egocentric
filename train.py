@@ -33,7 +33,7 @@ def train_one_amoeba_epoch(model, optimizers, data_loaders, device, epoch, print
     model.train()
 
     
-    g_opt, d_opt = optimizers
+    g_opt, d_opt, c_opt = optimizers
     source_data, target_video = data_loaders 
     
     source_iter = enumerate(source_data)
@@ -75,7 +75,7 @@ def train_one_amoeba_epoch(model, optimizers, data_loaders, device, epoch, print
         losses = sum(loss for loss in loss_dict.values())
         
         video_batch = video_batch.to(device)
-        loss_dict = model(video_batch, ignore=True)
+        loss_dict = model(video_batch)
         losses -= sum(loss for loss in loss_dict.values())
         descrip += loss_string(loss_dict)
         
@@ -87,17 +87,19 @@ def train_one_amoeba_epoch(model, optimizers, data_loaders, device, epoch, print
         
         for _ in range(4):
         
-            #loss_dict = model(source_images, source_targets)
-            #losses = sum(loss for loss in loss_dict.values())
+            loss_dict = model(source_images, source_targets)
+            losses = sum(loss for loss in loss_dict.values())
 
             video_batch = video_batch.to(device)
-            loss_dict = model(video_batch, ignore=True)
+            loss_dict = model(video_batch)
             losses = sum(loss for loss in loss_dict.values())
 
             g_opt.zero_grad()
+            c_opt.zero_grad()
             losses.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), 5)
             g_opt.step()
+            c_opt.step()
             del loss_dict, losses
         
 

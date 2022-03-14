@@ -4,6 +4,7 @@ import torch.nn as nn
 import torchvision
 
 from faster_rcnn import FasterRCNN
+from fcos import FCOS
 from train import train_one_epoch, collate_fn
 from video import OpenCVVideo
 from evaluation import Evaluator, evaluate
@@ -24,7 +25,7 @@ dataset_test = torchvision.datasets.CocoDetection('../cityscapes', '../cityscape
 data_loader = torch.utils.data.DataLoader(dataset, batch_size=args.batch, shuffle=True, num_workers=1,collate_fn=collate_fn)
 data_loader_test = torch.utils.data.DataLoader(dataset_test, batch_size=args.batch, shuffle=False, num_workers=1,collate_fn=collate_fn)
 
-model = FasterRCNN(num_classes)
+model = FCOS(num_classes)
 model.to(device)
 
 for p in model.parameters():

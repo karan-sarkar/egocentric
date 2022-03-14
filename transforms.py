@@ -47,7 +47,7 @@ class Albu():
         self, image, target):
         if target is not None:
             transformed = self.transform(image=np.array(image), bboxes = target['boxes'], category_ids = target['labels'])
-            target['boxes'] = convert_to_xyxy(transformed['bboxes'])
+            target['boxes'] = convert_to_xyxy(transformed['bboxes']).float()
             target['labels'] = torch.cat(transformed['category_ids'], 0)
         else:
             transformed = self.transform(image=np.array(image))
